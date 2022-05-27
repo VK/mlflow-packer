@@ -40,4 +40,4 @@ jobs:
         dockerfile: Dockerfile
         buildoptions: "--squash"
         tags: "${{ steps.get_version.outputs.VERSION }}"
-        working-directory: .devcontainer
+        workdir: .devcontainer
