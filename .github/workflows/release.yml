@@ -37,6 +37,7 @@ jobs:
         name: vikru/mlflow-packer
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
-        dockerfile: .devcontainer/Dockerfile
+        dockerfile: Dockerfile
         buildoptions: "--squash"
         tags: "${{ steps.get_version.outputs.VERSION }}"
+        working-directory: .devcontainer
