@@ -1,0 +1,5 @@
+
+# production addons
+
+COPY main.py /app/main.py
+
