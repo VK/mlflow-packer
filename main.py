@@ -33,6 +33,9 @@ def get_mflow_client():
 
 
 def get_repo_tags(repo):
+    
+    repo = repo.replace("_", "-")
+    
     base_url = config.get('Docker', 'HOST')
     token = config.get('Docker', 'TOKEN')
     user = config.get('Docker', 'USER')
@@ -79,7 +82,6 @@ app = FastAPI(
     title="MLflow Packer",
     description="""Build and push mlflow models.""",
     version="0.0.1",
-
 )
 
 
