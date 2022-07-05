@@ -15,7 +15,7 @@ import requests
 
 # load config once
 config = configparser.ConfigParser()
-config.read('./default.cfg')
+config.read('/default.cfg')
 
 
 def get_mflow_client():
