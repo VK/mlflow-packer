@@ -2,7 +2,7 @@
 set -eu
 
 # run the internal builder
-cd /app && uvicorn main:app &
+cd /app && uvicorn main:app --host 0.0.0.0 &
 
 _tls_ensure_private() {
 	local f="$1"; shift
