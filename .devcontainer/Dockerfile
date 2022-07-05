@@ -63,6 +63,7 @@ VOLUME /home/rootless/.local/share/docker
 # VK addon
 COPY  ./docker-entrypoint.sh /usr/local/bin
 RUN chmod 777  /usr/local/bin/docker-entrypoint.sh
+RUN chmod 777  /usr/local/bin/dockerd-entrypoint.sh
 ENV DOCKER_HOST=tcp://localhost:2376
 ENV DOCKER_TLS_VERIFY=1
 ENV DOCKER_CERT_PATH=/certs/client
