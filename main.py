@@ -57,11 +57,11 @@ def get_repo_tags(repo):
 
 
 
-def mlflow_build_docker(source, name):
+def mlflow_build_docker(source, name, env):
     org = config.get('Docker', 'ORG')
-    print(f'mlflow models build-docker -m {source} -n {org}/{name}')
+    print(f'mlflow models build-docker -m {source} -n {org}/{name} --env-manager {env}')
     os.system(
-        f'mlflow models build-docker -m {source} -n {org}/{name}'
+        f'mlflow models build-docker -m {source} -n {org}/{name} --env-manager {env}'
     )
 
 
@@ -81,7 +81,7 @@ def docker_push(name):
 app = FastAPI(
     title="MLflow Packer",
     description="""Build and push mlflow models.""",
-    version="0.0.1",
+    version="0.0.10",
 )
 
 
@@ -165,12 +165,13 @@ class BuildResponse(BaseModel):
     result: str
 
 @app.get("/build", response_model=BuildResponse)
-async def build_docker_model(name: str, version: str):
+async def build_docker_model(name: str, version: str, env: str = "local"):
     """
     Build a new model version an push it to the server regitry
 
     - **name**: model name
     - **version**: the version to build
+    - **env**: specify environment manager (local, conda, virtualenv)
     """
 
     # use the mlflow client to get all models
@@ -194,7 +195,7 @@ async def build_docker_model(name: str, version: str):
 
     new_name = f"{model.name.lower().replace('_', '-')}:{version.version}"
     
-    mlflow_build_docker(version.source, new_name)
+    mlflow_build_docker(version.source, new_name, env)
     res = docker_push(new_name)
 
     return JSONResponse({"result": res})
