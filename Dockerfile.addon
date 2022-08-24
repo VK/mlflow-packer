@@ -1,5 +1,7 @@
 
 # production addons
 
+COPY buildtemplate/ /app/
 COPY main.py /app/main.py
+
 
