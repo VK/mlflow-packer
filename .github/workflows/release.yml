@@ -18,7 +18,7 @@ jobs:
       run: |
         cat Dockerfile.addon >> .devcontainer/Dockerfile
         cp main.py .devcontainer
-        cp -R buildtemplate .devcontainer
+        cp -a buildtemplate/. .devcontainer/
     - name: Experimental docker for squash
       id: experimental_docker
       run: |
