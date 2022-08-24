@@ -109,9 +109,9 @@ RUN pip install -r /tmp/requirements.txt \\
     && mkdir -p /model
 
 WORKDIR /model
-EXPOSE 5000
+EXPOSE 8080
 
-ENTRYPOINT uvicorn main:app --host 0.0.0.0 --port 5000
+ENTRYPOINT uvicorn main:app --host 0.0.0.0 --port 8080
     """
     
     with open("baseDockerfile", 'w') as f:
