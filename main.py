@@ -111,8 +111,10 @@ RUN pip install -r /tmp/requirements.txt \\
 WORKDIR /model
 EXPOSE 8080
 
-ENTRYPOINT uvicorn main:app --host 0.0.0.0 --port 8080
-    """
+ENTRYPOINT gunicorn main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8080 --timeout 120
+    
+
+"""
     
     with open("baseDockerfile", 'w') as f:
         f.write(dockerfile)
@@ -138,9 +140,12 @@ def build_with_base_image(model, version):
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         os.chdir(tmpdirname)
-        os.system(
-            f'mlflow artifacts  download -u {version.source} -d {tmpdirname}'
-        )
+        command = f'mlflow artifacts  download -u {version.source} -d {tmpdirname}'
+
+        command = f'mlflow artifacts  download -u {version.source} -d /tmp/test'
+
+        print(command)
+        os.system(command)
 
         model_dir = list(os.scandir(tmpdirname))
         if len(model_dir) == 1:
@@ -161,6 +166,7 @@ def build_with_base_image(model, version):
 
         # create requirements hash
         md5_hash = hashlib.md5()
+        md5_hash.update(b"24.01.2023")
         req_file_name = os.path.join(model_dir, "requirements.txt") 
         with open(req_file_name,"rb") as f:
             # Read and update hash in chunks of 4K
@@ -190,7 +196,7 @@ def build_with_base_image(model, version):
         # create dockerfile with the serving
         dockerfile = f"""
         
-FROM amsosram/{BASE_IMAGE_NAME}:{new_tag}
+FROM {org}/{BASE_IMAGE_NAME}:{new_tag}
 
 COPY {model_dir.name}/ /model/
 RUN python setup.py

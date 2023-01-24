@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 import numpy as np
@@ -77,8 +78,24 @@ output_keys = [item["name"] for item in model.metadata.get_output_schema().to_di
 
 def predictor(request: Request) -> Response:
     inputs = {k: np.array(v).astype(input_types[k]) for k, v in request.inputs.dict().items()}
-    print(inputs)
-    data = model.predict(inputs)
+
+    error = False
+    try:
+        data = model.predict(inputs)
+    except:
+        error = True
+
+    if error:
+        print("reload model")
+        model = load_model(".")
+
+        try:
+            data = model.predict(inputs)
+        except:
+            pid = os.getpid()
+            print(f"Kill worker {pid}")
+            os.kill(pid, 9)
+
     
     if isinstance(data, list):
         outputs = {k: v.tolist() for k, v in zip(output_keys, data)}
@@ -112,3 +129,6 @@ if input_example:
         response_model=health_response_model,
         methods=["GET"],
     )
+
+
+
