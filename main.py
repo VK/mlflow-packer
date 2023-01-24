@@ -141,9 +141,6 @@ def build_with_base_image(model, version):
     with tempfile.TemporaryDirectory() as tmpdirname:
         os.chdir(tmpdirname)
         command = f'mlflow artifacts  download -u {version.source} -d {tmpdirname}'
-
-        command = f'mlflow artifacts  download -u {version.source} -d /tmp/test'
-
         print(command)
         os.system(command)
 
