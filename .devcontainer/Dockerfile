@@ -5,10 +5,10 @@ RUN apk add --update --no-cache python3 && ln -sf python3 /usr/bin/python
 RUN apk add --update --no-cache py3-numpy py3-pandas py3-scipy
 
 RUN python3 -m ensurepip
-RUN pip3 install --no-cache --upgrade pip setuptools
-RUN pip3 install  --no-cache --upgrade mlflow
+RUN pip3 install --no-cache --upgrade pip setuptools==65.3.0
+RUN pip3 install  --no-cache --upgrade mlflow==1.28.0
 
-RUN pip3 install  --no-cache --upgrade uvicorn fastapi
+RUN pip3 install  --no-cache --upgrade uvicorn==0.18.3 fastapi==0.80.0
 
 COPY dockerd-entrypoint.sh /usr/local/bin/dockerd-entrypoint.sh
 
