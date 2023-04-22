@@ -6,6 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
 
-    privileged: yes    
+    privileged: true    
     volumes:
       - ..:/app:cached
+      - ../default.cfg:/default.cfg
