@@ -26,7 +26,7 @@ def get_mflow_client():
     registry = config.get('Databricks', 'REGISTRY')
     user = config.get('Databricks', 'USER')
 
-    os.environ['DATABRICKS_HOST'] = registry+"adfasdf"
+    os.environ['DATABRICKS_HOST'] = registry
     os.environ['DATABRICKS_TOKEN'] = token
     os.environ["MLFLOW_TRACKING_TOKEN"] = token
     os.environ["MLFLOW_TRACKING_INSECURE_TLS"] = "true"
@@ -152,7 +152,8 @@ def build_with_base_image(model, version):
         if len(model_dir) == 1:
             model_dir = model_dir[0]
         else:
-            raise Exception("Multiple model dirs downloaded")
+            os.chdir(cwd)
+            raise Exception(f"Multiple model dirs downloaded {model_dir}")
 
         # extract python version
         with open(os.path.join(model_dir, "conda.yaml"), "r") as stream:
@@ -163,6 +164,7 @@ def build_with_base_image(model, version):
                     ][0]
                 python_version = python_version.split("=")[-1]
             except yaml.YAMLError as exc:
+                os.chdir(cwd)
                 raise Exception("Problem parsing conda.yaml")
 
         # create requirements hash
@@ -242,7 +244,8 @@ def build_with_tfserving(model, version):
         if len(model_dir) == 1:
             model_dir = model_dir[0]
         else:
-            raise Exception("Multiple model dirs downloaded")
+            os.chdir(cwd)
+            raise Exception(f"Multiple model dirs downloaded {model_dir}")
 
        # extract tensorflow version
         with open(os.path.join(model_dir, "requirements.txt"), "r") as file:
@@ -254,15 +257,16 @@ def build_with_tfserving(model, version):
                 print(tf_version)
                 tf_version = tf_version.split("=")[-1]
             except:
+                os.chdir(cwd)
                 raise Exception("Error parsing requirements for tensorflow")
 
         dockerfile = f"""
         
 FROM tensorflow/serving:{tf_version}
 
-ENV MODEL_NAME {model}
+ENV MODEL_NAME {model.name}
 
-COPY {model_dir.name}/data/* /models/{model}/01/
+COPY {model_dir.name}/data/* /models/{model.name}/01/
 
         """
 
