@@ -283,7 +283,8 @@ COPY {model_dir.name}/data/* /models/{model.name}/01/
             f'docker build -f Dockerfile -t {org}/{new_name} .' 
         )
 
-        docker_push(new_name)
+        # publish the container
+        res = docker_push(new_name)
         
     os.chdir(cwd)
     return res
