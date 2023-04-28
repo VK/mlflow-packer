@@ -20,6 +20,7 @@ config = configparser.ConfigParser()
 config.read('/default.cfg')
 BASE_IMAGE_NAME = "mlflow-packer-base"
 
+initial_wd = os.getcwd()
 
 def get_mflow_client():
     token = config.get('Databricks', 'TOKEN')
@@ -103,6 +104,7 @@ def build_mlflow_packer_base(python_version, tag, req_file_name, modeldir):
     """
 
     org = config.get('Docker', 'ORG')
+    os.chdir(initial_wd)
 
     dockerfile = f"""
 FROM python:{python_version}
@@ -140,6 +142,7 @@ def build_with_base_image(model, version):
     import hashlib
 
     org = config.get('Docker', 'ORG')
+    os.chdir(initial_wd)
     cwd = os.getcwd()
 
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -232,6 +235,7 @@ def build_with_tfserving(model, version):
     import hashlib
 
     org = config.get('Docker', 'ORG')
+    os.chdir(initial_wd)
     cwd = os.getcwd()
 
     with tempfile.TemporaryDirectory() as tmpdirname:
