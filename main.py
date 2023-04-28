@@ -221,8 +221,6 @@ RUN python setup.py
         # publish the container
         res = docker_push(new_name)
 
-
-
     os.chdir(cwd)
     return res
 
@@ -286,6 +284,10 @@ COPY {model_dir.name}/data/* /models/{model.name}/01/
         )
 
         docker_push(new_name)
+        
+    os.chdir(cwd)
+    return res
+        
 
 
 app = FastAPI(
