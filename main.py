@@ -97,6 +97,17 @@ def docker_pull(name):
     return client.api.pull(f"{org}/{name}")
 
 
+def add_index_url_to_req_file(req_file_name):
+    if config.has_option('Extra', 'INDEX_URL'):
+        index_url = config.get('Extra', 'INDEX_URL')
+
+        with open(req_file_name, 'r') as f:
+            original_content = f.read()
+        with open(req_file_name, 'w') as f:
+            f.write(f"--extra-index-url {index_url}" + '\n')
+            f.write(original_content)    
+
+
 
 def build_mlflow_packer_base(python_version, tag, req_file_name, modeldir):
     """
@@ -104,12 +115,12 @@ def build_mlflow_packer_base(python_version, tag, req_file_name, modeldir):
     """
 
     org = config.get('Docker', 'ORG')
-    os.chdir(initial_wd)
+    os.chdir(os.path.dirname(req_file_name))
 
     dockerfile = f"""
 FROM python:{python_version}
 
-COPY {modeldir.name}/requirements.txt /tmp/
+COPY requirements.txt /tmp/
 RUN pip install -r /tmp/requirements.txt \\
     && pip install uvicorn==0.18.2 protobuf==3.20.* fastapi==0.80.*\\
     && mkdir -p /model
@@ -180,6 +191,8 @@ def build_with_base_image(model, version):
                 md5_hash.update(byte_block)
         req_hash = md5_hash.hexdigest()
 
+        add_index_url_to_req_file(req_file_name)
+
         # check if the matching minimal model container is available
         try:
             known_containers = get_repo_tags(BASE_IMAGE_NAME)
@@ -199,12 +212,13 @@ def build_with_base_image(model, version):
         shutil.copyfile("/app/buildtemplate/main.py", os.path.join(model_dir, "main.py"))
         shutil.copyfile("/app/buildtemplate/setup.py", os.path.join(model_dir, "setup.py"))
 
+        os.chdir(os.path.dirname(req_file_name))
         # create dockerfile with the serving
         dockerfile = f"""
         
 FROM {org}/{BASE_IMAGE_NAME}:{new_tag}
 
-COPY {model_dir.name}/ /model/
+COPY . /model/
 RUN python setup.py
 
         """
