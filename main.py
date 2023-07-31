@@ -128,7 +128,7 @@ RUN pip install -r /tmp/requirements.txt \\
 WORKDIR /model
 EXPOSE 8080
 
-ENTRYPOINT gunicorn main:app --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8080 --timeout 120
+ENTRYPOINT gunicorn main:app --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8080 --timeout 600
     
 
 """
@@ -183,7 +183,7 @@ def build_with_base_image(model, version):
 
         # create requirements hash
         md5_hash = hashlib.md5()
-        md5_hash.update(b"24.01.2023")
+        md5_hash.update(b"31.07.2023")
         req_file_name = os.path.join(model_dir, "requirements.txt") 
         with open(req_file_name,"rb") as f:
             # Read and update hash in chunks of 4K

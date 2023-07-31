@@ -7,6 +7,7 @@ from pydantic import BaseModel, create_model
 from mlflow.types import Schema 
 import json
 from inspect import signature
+import subprocess
 
 
 app = FastAPI()
@@ -71,6 +72,8 @@ class Request(BaseModel):
 
 class Response(BaseModel):
     outputs: build_output_model(model.metadata.get_output_schema())  # type: ignore
+    message: str = "?"
+    model_id: str = model.metadata.run_id
 
 input_types = {item["name"]:item["tensor-spec"]["dtype"] if "tensor-spec" in item else item["type"] for item in model.metadata.get_input_schema().to_dict()}
 output_keys = [item["name"] for item in model.metadata.get_output_schema().to_dict()]
@@ -80,6 +83,9 @@ def predictor(request: Request) -> Response:
     inputs = {k: np.array(v).astype(input_types[k]) for k, v in request.inputs.dict().items()}
 
     error = False
+    message = "OK"
+    data = None
+
     try:
         data = model.predict(inputs)
     except:
@@ -91,17 +97,22 @@ def predictor(request: Request) -> Response:
 
         try:
             data = model.predict(inputs)
-        except:
+        except Exception as ex:
+            message = str(ex)
             pid = os.getpid()
             print(f"Kill worker {pid}")
-            os.kill(pid, 9)
+            # os.kill(pid, 9)
+            subprocess.Popen(f"/bin/sleep 1 && /bin/kill -9 {pid} ",  start_new_session=True, shell=True)
+
 
     
     if isinstance(data, list):
         outputs = {k: v.tolist() for k, v in zip(output_keys, data)}
     elif isinstance(data, dict):
         outputs = {k: v.tolist() for k, v in data.items()}
-    return Response(outputs=outputs)
+    else:
+        outputs = {k: []  for k in output_keys}
+    return Response(outputs=outputs, message=message)
 
 response_model = signature(predictor).return_annotation
 
