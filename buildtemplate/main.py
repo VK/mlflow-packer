@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, APIRouter
 from fastapi.responses import RedirectResponse
 import numpy as np
 from mlflow.pyfunc import load_model
@@ -11,24 +11,15 @@ from inspect import signature
 import subprocess
 
 
-app = FastAPI()
-
-class RootPathMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        root_path = request.headers.get("X-Script-Name", "")  # Change the header key if needed
-        if root_path:
-            request.state.root_path = root_path.rstrip("/")
-        else:
-            request.state.root_path = ""
-        response = await call_next(request)
-        return response
-
-app.add_middleware(RootPathMiddleware)
+base_path = os.environ.get('BASE_PATH', '/')
+if base_path[0] != "/":
+    base_path = "/" + base_path
+app = FastAPI(root_path = base_path)
 
 
 @app.get("/", include_in_schema=False)
 async def root():
-    return RedirectResponse(url='/docs')
+    return RedirectResponse(url=f'{base_path}/docs')
 
 model = load_model(".")
 
@@ -153,6 +144,3 @@ if input_example:
         response_model=health_response_model,
         methods=["GET"],
     )
-
-
-
