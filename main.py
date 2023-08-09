@@ -304,11 +304,16 @@ COPY {model_dir.name}/data/* /models/{model.name}/01/
     return res
         
 
+base_path = os.environ.get('BASE_PATH', '/')
+if base_path[0] != "/":
+    base_path = "/" + base_path
+app = FastAPI()
 
 app = FastAPI(
     title="MLflow Packer",
     description="""Build and push mlflow models.""",
-    version="0.0.10",
+    version="0.2.7",
+    root_path = base_path
 )
 
 
