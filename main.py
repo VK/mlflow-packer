@@ -3,7 +3,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List, Dict
-
+from inspect import signature
 
 
 import os
@@ -312,7 +312,7 @@ app = FastAPI()
 app = FastAPI(
     title="MLflow Packer",
     description="""Build and push mlflow models.""",
-    version="0.2.7",
+    version="0.2.8",
     root_path = base_path
 )
 
@@ -448,3 +448,16 @@ async def build_docker_model(name: str, version: str, env: str = "baseimage"):
         return JSONResponse({"result": res})
 
 
+class HealthResponse(BaseModel):
+    result: str
+def health() -> HealthResponse:
+    client = docker.from_env()
+    client.ping()
+    return HealthResponse(result="OK")
+health_response_model = signature(health).return_annotation
+app.add_api_route(
+    "/health",
+    health,
+    response_model=health_response_model,
+    methods=["GET"],
+)
