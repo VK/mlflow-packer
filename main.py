@@ -40,7 +40,7 @@ def get_mflow_client():
 
 def get_repo_tags(repo):
 
-    repo = repo.replace("_", "-")
+    repo = repo.replace("_", "-").lower()
     
     base_url = config.get('Docker', 'HOST')
     token = config.get('Docker', 'TOKEN')
@@ -218,6 +218,9 @@ def build_with_base_image(model, version):
         
 FROM {org}/{BASE_IMAGE_NAME}:{new_tag}
 
+ENV MODEL_TITLE={model.name.lower().replace('_', '-')}
+ENV MODEL_VERSION={version.version}
+
 COPY . /model/
 RUN python setup.py
 
@@ -307,19 +310,21 @@ COPY {model_dir.name}/data/* /models/{model.name}/01/
 base_path = os.environ.get('BASE_PATH', '/')
 if base_path[0] != "/":
     base_path = "/" + base_path
-app = FastAPI()
 
 app = FastAPI(
     title="MLflow Packer",
     description="""Build and push mlflow models.""",
-    version="0.2.8",
+    version="0.2.9",
     root_path = base_path
 )
 
 
 @app.get("/", include_in_schema=False)
 async def root():
-    return RedirectResponse(url='/docs')
+    if base_path == "/":
+        return RedirectResponse(url=f'/docs')
+    else:
+        return RedirectResponse(url=f'{base_path}/docs')
 
 
 
@@ -390,7 +395,14 @@ async def list_docker_models():
 
 
 
+@app.get("/image", response_model=List[DockerList])
+async def list_docker_models(name: str, ):
+    """
+    List the available images of a model
+    - **name**: model name
+    """
 
+    return JSONResponse(get_repo_tags(name.lower()))
 
 
 class BuildResponse(BaseModel):

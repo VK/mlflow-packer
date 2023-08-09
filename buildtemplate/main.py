@@ -11,15 +11,26 @@ from inspect import signature
 import subprocess
 
 
+model_title = os.environ.get('MODEL_TITLE', '???')
+model_version = os.environ.get('MODEL_VERSION', '?')
+
+
 base_path = os.environ.get('BASE_PATH', '/')
 if base_path[0] != "/":
     base_path = "/" + base_path
-app = FastAPI(root_path = base_path)
+app = FastAPI(
+    title=model_title,
+    description="""A mlflow packer model.""",
+    version=model_version,    
+    root_path = base_path)
 
 
 @app.get("/", include_in_schema=False)
 async def root():
-    return RedirectResponse(url=f'{base_path}/docs')
+    if base_path == "/":
+        return RedirectResponse(url=f'/docs')
+    else:
+        return RedirectResponse(url=f'{base_path}/docs')
 
 model = load_model(".")
 
