@@ -183,7 +183,7 @@ def build_with_base_image(model, version):
 
         # create requirements hash
         md5_hash = hashlib.md5()
-        md5_hash.update(b"31.07.2023")
+        md5_hash.update(b"8.09.2023")
         req_file_name = os.path.join(model_dir, "requirements.txt") 
         with open(req_file_name,"rb") as f:
             # Read and update hash in chunks of 4K

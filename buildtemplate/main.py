@@ -1,16 +1,29 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 import numpy as np
 from mlflow.pyfunc import load_model
 from pydantic import BaseModel, create_model
 from mlflow.types import Schema 
+from starlette.middleware.base import BaseHTTPMiddleware
 import json
 from inspect import signature
 import subprocess
 
 
 app = FastAPI()
+
+class RootPathMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        root_path = request.headers.get("X-Script-Name", "")  # Change the header key if needed
+        if root_path:
+            request.state.root_path = root_path.rstrip("/")
+        else:
+            request.state.root_path = ""
+        response = await call_next(request)
+        return response
+
+app.add_middleware(RootPathMiddleware)
 
 
 @app.get("/", include_in_schema=False)
