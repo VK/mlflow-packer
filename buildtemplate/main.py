@@ -137,6 +137,13 @@ app.add_api_route(
     response_model=response_model,
     methods=["POST"],
 )
+app.add_api_route(
+    "/",
+    predictor,
+    response_model=response_model,
+    methods=["POST"],
+    include_in_schema=False
+)
 
 
 if input_example:
