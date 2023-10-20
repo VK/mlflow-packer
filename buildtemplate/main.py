@@ -9,10 +9,15 @@ from starlette.middleware.base import BaseHTTPMiddleware
 import json
 from inspect import signature
 import subprocess
+import threading
 
 
 model_title = os.environ.get('MODEL_TITLE', '???')
 model_version = os.environ.get('MODEL_VERSION', '?')
+
+# Create a lock for synchronizing access to model_health
+model_health_lock = threading.Lock()
+model_health = None
 
 
 base_path = os.environ.get('BASE_PATH', '/')
@@ -112,6 +117,7 @@ def predictor(request: Request) -> Response:
 
         try:
             data = model.predict(inputs)
+            error = False
         except Exception as ex:
             message = str(ex)
             pid = os.getpid()
@@ -119,14 +125,26 @@ def predictor(request: Request) -> Response:
             # os.kill(pid, 9)
             subprocess.Popen(f"/bin/sleep 1 && /bin/kill -9 {pid} ",  start_new_session=True, shell=True)
 
+    if error:
+        update_model_health("Error")
+        return Response(outputs=None, message=message)
 
-    
-    if isinstance(data, list):
-        outputs = {k: v.tolist() for k, v in zip(output_keys, data)}
-    elif isinstance(data, dict):
-        outputs = {k: v.tolist() for k, v in data.items()}
-    else:
-        outputs = {k: []  for k in output_keys}
+    try:
+        if isinstance(data, list):
+            outputs = {k: v.tolist() for k, v in zip(output_keys, data)}
+        elif isinstance(data, dict):
+            outputs = {k: v.tolist() for k, v in data.items()}
+        else:
+            outputs = {k: []  for k in output_keys}
+    except Exception as ex:
+        error = True
+        message = str(ex)
+
+    if error:
+        update_model_health("Error")
+        return Response(outputs=None, message=message)
+      
+    update_model_health("OK")
     return Response(outputs=outputs, message=message)
 
 response_model = signature(predictor).return_annotation
@@ -146,15 +164,36 @@ app.add_api_route(
 )
 
 
+def update_model_health(health_status=None):
+    global model_health
+
+    if health_status is not None:
+        with model_health_lock:
+            model_health = health_status
+    else:
+        try:
+            # Execute your model
+            inputs = Request(inputs=input_example["inputs"])
+            predictor(inputs)
+            with model_health_lock:
+                model_health = "OK"  # Set the flag to "OK" if the model execution is successful
+        except Exception as e:
+            with model_health_lock:
+                model_health = "Error"  # Set the flag to "Error" if an exception occurs
+
+
 if input_example:
     # add health check endpoint if input_example is available
 
     class HealthResponse(BaseModel):
         result: str
     def health() -> HealthResponse:
-        inputs = Request(inputs=input_example["inputs"])
-        predictor(inputs)
-        return HealthResponse(result="OK")
+        global model_health
+        if model_health is None:
+            update_model_health()  # Check the model and set the flag
+        if model_health == "OK":
+            return HealthResponse(result="OK")
+
     health_response_model = signature(health).return_annotation
     app.add_api_route(
         "/health",
