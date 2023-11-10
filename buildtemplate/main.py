@@ -93,6 +93,7 @@ class Request(BaseModel):
 class Response(BaseModel):
     outputs: build_output_model(model.metadata.get_output_schema())  # type: ignore
     message: str = "?"
+    model_version: str = model_version
     model_id: str = model.metadata.run_id
 
 input_types = {item["name"]:item["tensor-spec"]["dtype"] if "tensor-spec" in item else item["type"] for item in model.metadata.get_input_schema().to_dict()}
