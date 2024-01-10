@@ -244,7 +244,7 @@ RUN python setup.py
 
 
 
-def build_with_tfserving(model, version):
+def build_with_tfserving(model, version, tf_version="auto"):
     
     import tempfile
     import hashlib
@@ -267,17 +267,18 @@ def build_with_tfserving(model, version):
             raise Exception(f"Multiple model dirs downloaded {model_dir}")
 
        # extract tensorflow version
-        with open(os.path.join(model_dir, "requirements.txt"), "r") as file:
-            try:
-                tf_version = [
-                    d for d in file.readlines()
-                    if "tensorflow==" in d
-                    ][0]
-                print(tf_version)
-                tf_version = tf_version.split("=")[-1]
-            except:
-                os.chdir(cwd)
-                raise Exception("Error parsing requirements for tensorflow")
+        if tf_version == "auto":
+            with open(os.path.join(model_dir, "requirements.txt"), "r") as file:
+                try:
+                    tf_version = [
+                        d for d in file.readlines()
+                        if "tensorflow==" in d
+                        ][0]
+                    print(tf_version)
+                    tf_version = tf_version.split("=")[-1]
+                except:
+                    os.chdir(cwd)
+                    raise Exception("Error parsing requirements for tensorflow")
 
         dockerfile = f"""
         
@@ -409,13 +410,14 @@ class BuildResponse(BaseModel):
     result: str
 
 @app.get("/build", response_model=BuildResponse)
-async def build_docker_model(name: str, version: str, env: str = "baseimage"):
+async def build_docker_model(name: str, version: str, env: str = "baseimage", contvers: str = "auto"):
     """
     Build a new model version an push it to the server regitry
 
     - **name**: model name
     - **version**: the version to build
     - **env**: specify environment manager (local, conda, virtualenv, baseimage, tfserving)
+    - **contvers**: container version (e.g 2.14.1)
     """
 
     # cleanup before start
@@ -447,7 +449,7 @@ async def build_docker_model(name: str, version: str, env: str = "baseimage"):
 
     elif env == "tfserving":
 
-        res = build_with_tfserving(model, version)
+        res = build_with_tfserving(model, version, contvers)
         return JSONResponse({"result": res})
 
     else:
