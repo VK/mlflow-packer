@@ -116,10 +116,11 @@ def get_repo_tags(repo):
 
 def get_hub_image_name(name):
     org = config.get('Docker', 'ORG')
+    base_url = config.get('Docker', 'HOST')
     if is_dockerhub():
         return f"{org}/{name}"
     else:
-        return name
+        return f"{base_url}/{name}"
 
 
 def mlflow_build_docker(source, name, env):
@@ -141,7 +142,10 @@ def docker_push(name):
     else:
         client.login(username = user, password=token, registry=base_url)
 
-    return client.api.push(f"{org}/{name}")
+    if is_dockerhub():
+        return client.api.push(f"{org}/{name}")
+    else:
+        return client.api.push(f"{base_url}/{name}")
 
 
 def docker_pull(name):
@@ -157,7 +161,10 @@ def docker_pull(name):
     else:
         client.login(username = user, password=token, registry=base_url)
 
-    return client.api.pull(f"{org}/{name}")
+    if is_dockerhub():
+        return client.api.pull(f"{org}/{name}")
+    else:
+        return client.api.pull(f"{base_url}/{name}")
 
 
 def add_index_url_to_req_file(req_file_name):
@@ -178,12 +185,13 @@ def build_mlflow_packer_base(python_version, tag, req_file_name, modeldir):
     """
 
     org = config.get('Docker', 'ORG')
+    base_url = config.get('Docker', 'HOST')
     os.chdir(os.path.dirname(req_file_name))
 
     if is_dockerhub():
         base_imagename = f"{org}/{BASE_IMAGE_NAME}"
     else:
-        base_imagename = BASE_IMAGE_NAME
+        base_imagename = f"{base_url}/{BASE_IMAGE_NAME}"
 
     dockerfile = f"""
 FROM python:{python_version}
@@ -221,10 +229,11 @@ def build_with_base_image(model, version):
     import hashlib
 
     org = config.get('Docker', 'ORG')
+    base_url = config.get('Docker', 'HOST')
     if is_dockerhub():
         base_imagename = f"{org}/{BASE_IMAGE_NAME}"
     else:
-        base_imagename = BASE_IMAGE_NAME
+        base_imagename = f"{base_url}/{BASE_IMAGE_NAME}"
 
 
     os.chdir(initial_wd)
@@ -269,7 +278,7 @@ def build_with_base_image(model, version):
 
         # check if the matching minimal model container is available
         try:
-            known_containers = get_repo_tags(BASE_IMAGE_NAME)
+            known_containers = get_repo_tags(base_imagename)
         except:
             known_containers = []
 
@@ -279,8 +288,8 @@ def build_with_base_image(model, version):
         if new_tag not in known_containers:
             res = build_mlflow_packer_base(python_version, new_tag, req_file_name, model_dir)
         else:
-            print(f"pull image {BASE_IMAGE_NAME}:{new_tag}")
-            docker_pull(f"{BASE_IMAGE_NAME}:{new_tag}")
+            print(f"pull image {base_imagename}:{new_tag}")
+            docker_pull(f"{base_imagename}:{new_tag}")
 
         # inject main.py
         shutil.copyfile("/app/buildtemplate/main.py", os.path.join(model_dir, "main.py"))
