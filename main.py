@@ -38,6 +38,38 @@ def get_mflow_client():
     return client
 
 
+def get_azure_access_token(scope):
+    base_url = config.get('Docker', 'HOST')
+    user = config.get('Docker', 'USER')  # Typically the ACR admin user or service principal username
+    token = config.get('Docker', 'TOKEN')  # ACR admin password or token
+
+    # Get a valid auth token
+    auth_url = f"https://{base_url}/oauth2/token"
+    auth_data = {
+        'grant_type': 'password',
+        'service': base_url,
+        'scope': scope,
+        'username': user,
+        'password': token
+    }
+
+    auth_res = requests.post(auth_url, data=auth_data)
+    if auth_res.ok:
+        auth_token = auth_res.json().get('access_token')
+        return auth_token
+    else:
+        raise Exception("Failed to get auth token")
+
+def is_dockerhub():
+    """
+    Check if the Docker host is Docker Hub.
+
+    Returns:
+        bool: True if the Docker host is Docker Hub, False otherwise.
+    """
+    base_url = config.get('Docker', 'HOST')
+    return "docker.io" in base_url
+
 def get_repo_tags(repo):
 
     repo = repo.replace("_", "-").lower()
@@ -47,29 +79,53 @@ def get_repo_tags(repo):
     user = config.get('Docker', 'USER')
     org = config.get('Docker', 'ORG')
 
-    login_url = f"{base_url}/users/login"
-    repo_url = f"{base_url}/repositories/{org}/{repo}/tags"
+    # check if base_url suggests docerhub
+    if is_dockerhub():
 
-    tok_req = requests.post(
-        login_url, json={"username": user, "password": token})
-    token = tok_req.json()["token"]
-    headers = {"Authorization": f"JWT {token}"}
+        login_url = f"{base_url}/users/login"
+        repo_url = f"{base_url}/repositories/{org}/{repo}/tags"
 
-    res = requests.get(repo_url, headers=headers)
-    if res.ok:
-        data = res.json()
-        return [el["name"] for el in data["results"]]
+        tok_req = requests.post(
+            login_url, json={"username": user, "password": token})
+        token = tok_req.json()["token"]
+        headers = {"Authorization": f"JWT {token}"}
+
+        res = requests.get(repo_url, headers=headers)
+        if res.ok:
+            data = res.json()
+            return [el["name"] for el in data["results"]]
+        else:
+            return []
+        
     else:
-        return []
+        # assume azure container registry
+        tags_url = f"https://{base_url}/v2/{repo}/tags/list"
+
+        # Create Bearer auth header
+        auth_token = get_azure_access_token(f"repository:{repo}:metadata_read")
+        headers = {"Authorization": f"Bearer {auth_token}"}
+
+        res = requests.get(tags_url, headers=headers)
+        if res.ok:
+            data = res.json()
+            return data.get('tags', [])
+        else:
+            return []
 
 
+
+def get_hub_image_name(name):
+    org = config.get('Docker', 'ORG')
+    if is_dockerhub():
+        return f"{org}/{name}"
+    else:
+        return name
 
 
 def mlflow_build_docker(source, name, env):
-    org = config.get('Docker', 'ORG')
-    print(f'mlflow models build-docker -m {source} -n {org}/{name} --env-manager {env}')
+    print(f'mlflow models build-docker -m {source} -n {get_hub_image_name(name)} --env-manager {env}')
     os.system(
-        f'mlflow models build-docker -m {source} -n {org}/{name} --env-manager {env}'
+        f'mlflow models build-docker -m {source} -n {get_hub_image_name(name)} --env-manager {env}'
     )
 
 
@@ -80,7 +136,10 @@ def docker_push(name):
     org = config.get('Docker', 'ORG')
 
     client = docker.from_env()
-    client.login(username = user, password=token)
+    if is_dockerhub():
+        client.login(username = user, password=token)
+    else:
+        client.login(username = user, password=token, registry=base_url)
 
     return client.api.push(f"{org}/{name}")
 
@@ -92,7 +151,11 @@ def docker_pull(name):
     org = config.get('Docker', 'ORG')
 
     client = docker.from_env()
-    client.login(username = user, password=token)
+
+    if is_dockerhub():
+        client.login(username = user, password=token)
+    else:
+        client.login(username = user, password=token, registry=base_url)
 
     return client.api.pull(f"{org}/{name}")
 
@@ -117,6 +180,11 @@ def build_mlflow_packer_base(python_version, tag, req_file_name, modeldir):
     org = config.get('Docker', 'ORG')
     os.chdir(os.path.dirname(req_file_name))
 
+    if is_dockerhub():
+        base_imagename = f"{org}/{BASE_IMAGE_NAME}"
+    else:
+        base_imagename = BASE_IMAGE_NAME
+
     dockerfile = f"""
 FROM python:{python_version}
 
@@ -136,7 +204,7 @@ ENTRYPOINT gunicorn main:app --workers 1 --worker-class uvicorn.workers.UvicornW
     with open("baseDockerfile", 'w') as f:
         f.write(dockerfile)
     os.system(
-        f'docker build -f baseDockerfile -t {org}/{BASE_IMAGE_NAME}:{tag} .' 
+        f'docker build -f baseDockerfile -t {base_imagename}:{tag} .' 
     )
 
 
@@ -153,6 +221,12 @@ def build_with_base_image(model, version):
     import hashlib
 
     org = config.get('Docker', 'ORG')
+    if is_dockerhub():
+        base_imagename = f"{org}/{BASE_IMAGE_NAME}"
+    else:
+        base_imagename = BASE_IMAGE_NAME
+
+
     os.chdir(initial_wd)
     cwd = os.getcwd()
 
@@ -216,7 +290,7 @@ def build_with_base_image(model, version):
         # create dockerfile with the serving
         dockerfile = f"""
         
-FROM {org}/{BASE_IMAGE_NAME}:{new_tag}
+FROM {base_imagename}:{new_tag}
 
 ENV MODEL_TITLE={model.name.lower().replace('_', '-')}
 ENV MODEL_VERSION={version.version}
@@ -231,8 +305,10 @@ RUN python setup.py
 
         # build the dockerfile
         new_name = f"{model.name.lower().replace('_', '-')}:{version.version}"
+        image_name = get_hub_image_name(new_name)
+
         os.system(
-            f'docker build -f Dockerfile -t {org}/{new_name} .' 
+            f'docker build -f Dockerfile -t {image_name} .' 
         )        
 
         # publish the container
@@ -297,8 +373,9 @@ COPY {model_dir.name}/data/* /models/{model.name}/01/
 
         # build the dockerfile
         new_name = f"{model.name.lower().replace('_', '-')}:{version.version}-tfserving"
+        image_name = get_hub_image_name(new_name)
         os.system(
-            f'docker build -f Dockerfile -t {org}/{new_name} .' 
+            f'docker build -f Dockerfile -t {image_name} .' 
         )
 
         # publish the container
