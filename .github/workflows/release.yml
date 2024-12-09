@@ -33,7 +33,7 @@ jobs:
         echo ::set-output name=TAG::${latest/master/$VERSION}
         echo $TAG
     - name: Publish to Registry
-      uses: elgohr/Publish-Docker-Github-Action@master
+      uses: elgohr/Publish-Docker-Github-Action@v5
       with:
         name: vikru/mlflow-packer
         username: ${{ secrets.DOCKER_USERNAME }}
