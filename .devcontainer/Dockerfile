@@ -73,3 +73,8 @@ EXPOSE 8000
 # VK end
 USER rootless
 
+# create a docker login config
+RUN mkdir -p /home/rootless/.docker
+COPY ./dockerconfig.json /home/rootless/.docker/config.json
+RUN chmod 600 /home/rootless/.docker/config.json
+
