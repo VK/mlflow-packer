@@ -75,6 +75,5 @@ USER rootless
 
 # create a docker login config
 RUN mkdir -p /home/rootless/.docker
-COPY ./dockerconfig.json /home/rootless/.docker/config.json
-RUN chmod 600 /home/rootless/.docker/config.json
+COPY --chmod=600 ./dockerconfig.json /home/rootless/.docker/config.json
 
