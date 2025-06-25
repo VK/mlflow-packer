@@ -23,7 +23,13 @@ BASE_IMAGE_NAME = "mlflow-packer-base"
 initial_wd = os.getcwd()
 
 def get_mflow_client():
-    token = config.get('Databricks', 'TOKEN')
+    
+    if 'DBR_TOKEN' in os.environ:
+        # get token from ENVIRONMENT if possible
+        token = os.environ['DBR_TOKEN']
+    else:
+        token = config.get('Databricks', 'TOKEN')
+
     registry = config.get('Databricks', 'REGISTRY')
     user = config.get('Databricks', 'USER')
 
@@ -168,14 +174,19 @@ def docker_pull(name):
 
 
 def add_index_url_to_req_file(req_file_name):
-    if config.has_option('Extra', 'INDEX_URL'):
-        index_url = config.get('Extra', 'INDEX_URL')
+    import os
+    AZURE_DEV_PAT = os.environ.get('AZURE_DEV_PAT', None)
+    if AZURE_DEV_PAT is None:
+        print("No AZURE_DEV_PAT found, skipping adding index url to requirements.txt")
+        return
+    
+    index_url = f"https://{AZURE_DEV_PAT}@pkgs.dev.azure.com/OsramDS/_packaging/OsramDS/pypi/simple/"
 
-        with open(req_file_name, 'r') as f:
-            original_content = f.read()
-        with open(req_file_name, 'w') as f:
-            f.write(f"--extra-index-url {index_url}" + '\n')
-            f.write(original_content)    
+    with open(req_file_name, 'r') as f:
+        original_content = f.read()
+    with open(req_file_name, 'w') as f:
+        f.write(f"--extra-index-url {index_url}" + '\n')
+        f.write(original_content)    
 
 
 
